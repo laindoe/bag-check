@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bag Check — Bank of the Universe</title>
+<link rel="icon" href="icon-180.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#26452e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bag Check">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+
+  :root{
+    --paper:#e6e2cf;
+    --paper-2:#dcd7bd;
+    --paper-hi:#f2efe0;
+    --ink:#163b2a;
+    --ink-2:#274a37;
+    --line:#3f5c4a;
+    --line-soft:#5a7a66;
+    --gold:#a8863c;
+    --gold-hi:#c9a94e;
+    --red:#8a3324;
+    --shadow:rgba(22,59,42,0.18);
+  }
+
+  html,body{background:var(--ink)}
+
+  /* display face for wordmark + section heads */
+  .wordmark,.ledger-head h2,.modal-head{
+    font-family:'Space Grotesk','Inter',sans-serif;
+  }
+
+  /* ledger-aligned figures for money */
+  .bill-amt,.mr-amt,.door-amount,.vault-amount,.serial,#owe-summary,
+  .field input,.field select{
+    font-variant-numeric:tabular-nums;
+    font-feature-settings:"tnum" 1;
+  }
+
+  /* small labels: bold for legibility on cream */
+  .eyebrow,.serial,.door-label,.door-caption,.vault-label,.bill-line,
+  .panel-title,.field label,.seg button,.btn,.chip,.stamp,
+  .ledger-head .sm,.manage-row .mr-meta,#owe-summary{
+    font-weight:700;
+  }
+  .bill-amt,.mr-amt,.door-amount,.vault-amount,.field input,.field select{
+    font-weight:700;
+  }
+
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    color:var(--ink);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .note{
+    max-width:640px;
+    margin:0 auto;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(168,134,60,0.06), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(74,107,87,0.08), transparent 45%),
+      var(--paper);
+    position:relative;
+    padding-bottom:96px;
+    box-shadow:0 0 60px rgba(0,0,0,0.5);
+  }
+
+  /* engraved double-rule border */
+  .note::before{
+    content:"";
+    position:absolute;
+    inset:10px;
+    border:1.5px solid var(--line);
+    border-radius:3px;
+    pointer-events:none;
+    opacity:0.55;
+  }
+  .note::after{
+    content:"";
+    position:absolute;
+    inset:14px;
+    border:0.75px solid var(--line);
+    border-radius:2px;
+    pointer-events:none;
+    opacity:0.4;
+  }
+
+  .inner{position:relative;z-index:2;padding:26px 22px 0}
+
+  /* ===== Masthead ===== */
+  .masthead{
+    text-align:center;
+    padding:6px 0 14px;
+    border-bottom:2px solid var(--ink);
+    position:relative;
+  }
+  .masthead .rule-sub{
+    position:absolute;left:0;right:0;bottom:-6px;height:1px;background:var(--ink);opacity:0.5;
+  }
+  .eyebrow{
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:10px;
+    letter-spacing:4px;
+    text-transform:uppercase;
+    color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:10px;
+  }
+  .eyebrow::before,.eyebrow::after{content:"";height:1px;width:34px;background:var(--line)}
+  .wordmark{
+    font-weight:700;
+    font-size:46px;
+    letter-spacing:2px;
+    line-height:1;
+    margin:6px 0 4px;
+    text-transform:uppercase;
+  }
+  .wordmark .amp{color:var(--gold)}
+  .serial{
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:11px;
+    letter-spacing:3px;
+    color:var(--red);
+  }
+
+  /* ===== Tabs (as ledger tabs) ===== */
+  .tabs{
+    display:flex;
+    gap:0;
+    margin:18px 0 22px;
+    border:1.5px solid var(--ink);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .tab-btn{
+    flex:1;
+    background:transparent;
+    border:none;
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--ink-2);
+    padding:11px 8px;
+    cursor:pointer;
+    transition:background .2s,color .2s;
+  }
+  .tab-btn+.tab-btn{border-left:1.5px solid var(--ink)}
+  .tab-btn.active{background:var(--ink);color:var(--paper-hi)}
+
+  .view{display:none}
+  .view.active{display:block;animation:fade .4s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ===== category sections ===== */
+  .cat-section{margin-bottom:26px}
+  .cat-head{
+    display:flex;align-items:baseline;gap:9px;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:6px;margin-bottom:4px;
+    cursor:pointer;user-select:none;
+  }
+  .cat-head h2{font-weight:700;font-size:20px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;margin-right:auto}
+  .cat-caret{font-size:13px;color:var(--ink-2);transform:translateY(-1px);width:14px;display:inline-block}
+  .cat-total{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cat-total.owe{color:var(--red)}
+  .cat-total.need{color:var(--ink)}
+  .cat-total.want{color:var(--gold)}
+  .cat-note{font-size:11px;font-style:italic;color:var(--ink-2);margin:4px 0 12px}
+
+  /* ===== Bank facade ===== */
+  .facade{position:relative;margin-bottom:8px}
+  .facade svg{display:block;width:100%;height:auto}
+
+  .facade-name-svg{
+    font-family:'Space Grotesk','Inter',sans-serif;
+    font-weight:700;
+    font-size:20px;
+    letter-spacing:1px;
+    fill:var(--ink);
+  }
+
+  .doors{
+    position:absolute;
+    bottom:13%;
+    left:0;right:0;
+    display:flex;
+    justify-content:center;
+    gap:5%;
+    padding:0 30%;
+  }
+  .door{
+    flex:1;
+    background:linear-gradient(180deg,var(--paper-hi),var(--paper-2));
+    border:1.5px solid var(--ink);
+    border-radius:50% 50% 6px 6px / 34% 34% 6px 6px;
+    padding:12px 6px 10px;
+    text-align:center;
+    box-shadow:inset 0 2px 6px rgba(22,59,42,0.15);
+  }
+  .door-label{
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:10px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;gap:4px;
+  }
+  .door-caption{
+    font-size:9px;
+    font-style:italic;
+    color:var(--ink-2);
+    margin-top:1px;
+    letter-spacing:.3px;
+  }
+  .door-amount{
+    font-family:'Inter',system-ui,sans-serif;
+    font-weight:400;
+    font-size:clamp(15px,4.6vw,20px);
+    margin-top:5px;
+    color:var(--ink);
+    cursor:default;
+  }
+  .door.in .door-amount{color:var(--ink-2)}
+  .door.out .door-amount{color:var(--red)}
+  .door.in.editable .door-amount{cursor:pointer}
+
+  /* ===== Vault (available after bills) ===== */
+  .vault{
+    position:relative;
+    margin:14px 0 26px;
+    text-align:center;
+    padding:22px 16px;
+  }
+  .vault .rosette{
+    position:absolute;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    width:210px;height:210px;
+    opacity:0.5;
+    pointer-events:none;
+  }
+  .vault-label{
+    position:relative;
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:10px;
+    letter-spacing:4px;
+    text-transform:uppercase;
+    color:var(--ink-2);
+  }
+  .vault-amount{
+    position:relative;
+    font-family:'Inter',system-ui,sans-serif;
+    font-weight:400;
+    font-size:clamp(34px,11vw,52px);
+    line-height:1.05;
+    margin-top:4px;
+    color:var(--ink);
+  }
+  .vault-amount.neg{color:var(--red)}
+  .vault-sub{
+    position:relative;
+    font-style:italic;
+    font-size:12px;
+    color:var(--ink-2);
+    margin-top:2px;
+  }
+
+  /* ===== Section heading ===== */
+  .ledger-head{
+    display:flex;align-items:center;gap:12px;
+    margin:22px 0 14px;
+  }
+  .ledger-head::before,.ledger-head::after{content:"";flex:1;height:2px;background:var(--ink);opacity:.85}
+  .ledger-head h2{
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .ledger-head .sm{
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:11px;
+    letter-spacing:2px;
+    color:var(--ink-2);
+  }
+
+  /* ===== Bill certificate rows ===== */
+  .bill{
+    display:flex;align-items:center;gap:12px;
+    background:linear-gradient(180deg,var(--paper-hi),var(--paper));
+    border:1.5px solid var(--line);
+    border-radius:4px;
+    padding:11px 13px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .bill::before{
+    content:"";position:absolute;inset:3px;border:0.75px solid var(--line);border-radius:2px;opacity:.4;pointer-events:none;
+  }
+  .bill.due-soon{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+  .bill.paid{opacity:.62}
+
+  /* wax-seal paid toggle */
+  .seal{
+    width:46px;height:46px;min-width:46px;
+    border-radius:50%;
+    border:2px solid var(--line);
+    background:radial-gradient(circle at 40% 35%,var(--paper-hi),var(--paper-2));
+    color:var(--ink-2);
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:9px;letter-spacing:.5px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:all .2s;
+    position:relative;z-index:1;
+  }
+  .seal:hover{border-color:var(--ink)}
+  .seal.stamped{
+    border-color:var(--red);
+    background:radial-gradient(circle at 40% 35%,#a34435,var(--red));
+    color:var(--paper-hi);
+    box-shadow:inset 0 0 8px rgba(0,0,0,0.3);
+  }
+  .bill-body{flex:1;min-width:0;position:relative;z-index:1}
+  .bill-name{
+    font-weight:700;font-size:15px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .bill-line{
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:10px;letter-spacing:.5px;color:var(--ink-2);
+    margin-top:2px;
+    display:flex;gap:8px;flex-wrap:wrap;
+  }
+  .bill-line .dot{color:var(--line)}
+  .bill-line .badge-rec{color:var(--gold)}
+  .bill-line .status-owed{color:var(--red)}
+  .bill-line .status-paid{color:var(--ink-2)}
+  .bill-amt{
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:16px;text-align:right;white-space:nowrap;position:relative;z-index:1;
+  }
+
+  .empty{
+    text-align:center;padding:30px 16px;color:var(--ink-2);
+    font-style:italic;
+    border:1.5px dashed var(--line);border-radius:4px;
+  }
+
+  /* ===== Teller (add page) ===== */
+  .panel{
+    background:linear-gradient(180deg,var(--paper-hi),var(--paper));
+    border:1.5px solid var(--ink);
+    border-radius:5px;
+    padding:18px 16px;
+    margin-bottom:18px;
+    position:relative;
+  }
+  .panel::before{content:"";position:absolute;inset:4px;border:0.75px solid var(--line);border-radius:3px;opacity:.35;pointer-events:none}
+  .panel-title{
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:11px;letter-spacing:3px;text-transform:uppercase;
+    color:var(--ink-2);margin-bottom:14px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .panel-title::after{content:"";flex:1;height:1px;background:var(--line);opacity:.5}
+
+  .field{margin-bottom:13px;position:relative;z-index:1}
+  .field label{
+    display:block;
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--ink-2);margin-bottom:5px;
+  }
+  .field input,.field select{
+    width:100%;
+    background:var(--paper-hi);
+    border:1.5px solid var(--line);
+    border-radius:3px;
+    padding:11px 12px;
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:15px;
+    color:var(--ink);
+  }
+  .field input:focus,.field select:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 2px rgba(22,59,42,0.12)}
+
+  /* account rows */
+  .acct-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;position:relative;z-index:1}
+  .acct-row .acct-name{
+    flex:1.4;min-width:0;
+    background:var(--paper-hi);border:1.5px solid var(--line);border-radius:3px;
+    padding:10px 11px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;color:var(--ink);
+  }
+  .acct-row .acct-bal{
+    flex:1;min-width:0;
+    background:var(--paper-hi);border:1.5px solid var(--line);border-radius:3px;
+    padding:10px 11px;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;color:var(--ink);
+    text-align:right;font-variant-numeric:tabular-nums;
+  }
+  .acct-row .acct-name:focus,.acct-row .acct-bal:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 2px rgba(22,59,42,0.12)}
+  .acct-total-hint{position:absolute;left:11px;font-size:14px;font-weight:700;color:var(--ink-2);pointer-events:none}
+  .accounts-total-row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-top:14px;padding-top:12px;border-top:2px solid var(--ink);
+    position:relative;z-index:1;
+    font-weight:700;
+  }
+  .accounts-total-row span:first-child{
+    font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-2);
+  }
+  .accounts-total-row #accounts-total{
+    font-size:22px;color:var(--ink);font-variant-numeric:tabular-nums;
+  }
+  .acct-empty{font-size:12px;font-style:italic;color:var(--ink-2);margin-bottom:9px;position:relative;z-index:1}
+
+  .seg{display:flex;border:1.5px solid var(--line);border-radius:3px;overflow:hidden}
+  .seg button{
+    flex:1;background:var(--paper-hi);border:none;
+    font-family:'Inter',system-ui,sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;
+    padding:10px;cursor:pointer;color:var(--ink-2);transition:all .2s;
+  }
+  .seg button+button{border-left:1.5px solid var(--line)}
+  .seg button.on{background:var(--ink);color:var(--paper-hi)}
+
+  .btn{
+    width:100%;
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:12px;letter-spacing:2px;text-transform:uppercase;
+    padding:13px;border-radius:3px;border:1.5px solid var(--ink);
+    cursor:pointer;transition:all .2s;
+  }
+  .btn-primary{background:var(--ink);color:var(--paper-hi)}
+  .btn-primary:hover{background:var(--ink-2)}
+  .btn-ghost{background:transparent;color:var(--ink);margin-top:8px}
+  .btn-ghost:hover{background:rgba(22,59,42,0.06)}
+  .btn-danger{background:var(--red);border-color:var(--red);color:var(--paper-hi);margin-top:8px}
+
+  .filter-row{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-ms-overflow-style:none}
+  .filter-row::-webkit-scrollbar{display:none;width:0;height:0}
+  .chip{
+    font-family:'Inter',system-ui,sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    padding:7px 11px;border:1.5px solid var(--line);border-radius:20px;
+    background:transparent;color:var(--ink-2);cursor:pointer;white-space:nowrap;transition:all .2s;
+  }
+  .chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper-hi)}
+
+  .manage-row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--paper-hi);border:1.5px solid var(--line);border-radius:3px;
+    padding:10px 12px;margin-bottom:8px;
+  }
+  .manage-row .mr-body{flex:1;min-width:0}
+  .manage-row .mr-name{font-weight:700;font-size:14px}
+  .manage-row .mr-meta{font-family:'Inter',system-ui,sans-serif;font-size:10px;color:var(--ink-2);margin-top:2px}
+  .manage-row .mr-amt{font-family:'Inter',system-ui,sans-serif;font-size:14px}
+  .mini{
+    width:34px;height:34px;border:1.5px solid var(--line);border-radius:3px;background:transparent;
+    color:var(--ink);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;
+  }
+  .mini:hover{background:var(--ink);color:var(--paper-hi)}
+
+  /* ===== Modal ===== */
+  .modal{display:none;position:fixed;inset:0;background:rgba(22,59,42,0.55);z-index:100;padding:16px;align-items:flex-end;justify-content:center}
+  .modal.active{display:flex}
+  .modal-card{
+    width:100%;max-width:608px;
+    background:var(--paper);
+    border:2px solid var(--ink);
+    border-radius:6px 6px 0 0;
+    padding:22px 18px;
+    animation:up .3s ease-out;
+    position:relative;
+  }
+  .modal-card::before{content:"";position:absolute;inset:5px;border:0.75px solid var(--line);border-radius:4px;opacity:.4;pointer-events:none}
+  @keyframes up{from{transform:translateY(100%)}to{transform:none}}
+  .modal-head{font-weight:700;font-size:20px;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;position:relative;z-index:1}
+
+  /* ===== Footer stamp ===== */
+  .stamp{
+    text-align:center;
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--line);
+    padding:20px 0 6px;
+  }
+
+  @media(max-width:400px){
+    .wordmark{font-size:38px}
+    .doors{padding:0 11%;gap:4%}
+  }
+</style>
+</head>
+<body>
+<div class="note">
+  <div class="inner">
+
+    <div class="masthead">
+      <div class="eyebrow">Federal Reserve of You</div>
+      <div class="wordmark">Bag <span class="amp">✦</span> Check</div>
+      <div class="serial">№ B-888 · THIS APP IS FOR TENDING TO ALL YOUR DREAMS</div>
+      <div class="rule-sub"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="bank">The Bank</button>
+      <button class="tab-btn" data-tab="teller">The Teller</button>
+    </div>
+
+    <!-- ===================== BANK ===================== -->
+    <div id="bank" class="view active">
+
+      <div class="facade">
+        <!-- engraved bank building -->
+        <svg viewBox="0 0 400 322" aria-hidden="true">
+          <defs>
+            <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#2f5a43"/>
+              <stop offset="1" stop-color="#163b2a"/>
+            </linearGradient>
+          </defs>
+
+          <!-- pediment -->
+          <polygon points="200,10 368,78 32,78" fill="url(#stone)" stroke="#163b2a" stroke-width="2"/>
+          <polygon points="200,22 352,82 48,82" fill="none" stroke="#c9a94e" stroke-width="1" opacity="0.7"/>
+          <!-- seal in pediment -->
+          <circle cx="200" cy="50" r="11" fill="none" stroke="#c9a94e" stroke-width="1.2"/>
+          <circle cx="200" cy="50" r="7.5" fill="none" stroke="#dcd7bd" stroke-width="0.75"/>
+
+          <!-- NAMEPLATE FRIEZE -->
+          <rect x="24" y="80" width="352" height="42" fill="#dcd7bd" stroke="#163b2a" stroke-width="2"/>
+          <line x1="30" y1="86" x2="370" y2="86" stroke="#a8863c" stroke-width="0.8" opacity="0.85"/>
+          <line x1="30" y1="116" x2="370" y2="116" stroke="#a8863c" stroke-width="0.8" opacity="0.85"/>
+          <text x="200" y="107" text-anchor="middle" textLength="322" lengthAdjust="spacingAndGlyphs" class="facade-name-svg">BANK OF THE UNIVERSE</text>
+
+          <!-- architrave under frieze -->
+          <rect x="26" y="122" width="348" height="8" fill="url(#stone)" stroke="#163b2a" stroke-width="1.5"/>
+
+          <!-- capitals -->
+          <g fill="#2f5a43" stroke="#163b2a" stroke-width="1">
+            <rect x="42" y="130" width="32" height="7"/><rect x="100" y="130" width="32" height="7"/>
+            <rect x="268" y="130" width="32" height="7"/><rect x="326" y="130" width="32" height="7"/>
+          </g>
+
+          <!-- columns -->
+          <g fill="#dcd7bd" stroke="#163b2a" stroke-width="1.5">
+            <rect x="46"  y="137" width="24" height="132" rx="2"/>
+            <rect x="104" y="137" width="24" height="132" rx="2"/>
+            <rect x="272" y="137" width="24" height="132" rx="2"/>
+            <rect x="330" y="137" width="24" height="132" rx="2"/>
+          </g>
+          <!-- fluting -->
+          <g stroke="#3f5c4a" stroke-width="0.6" opacity="0.5">
+            <line x1="52" y1="141" x2="52" y2="265"/><line x1="58" y1="141" x2="58" y2="265"/><line x1="64" y1="141" x2="64" y2="265"/>
+            <line x1="110" y1="141" x2="110" y2="265"/><line x1="116" y1="141" x2="116" y2="265"/><line x1="122" y1="141" x2="122" y2="265"/>
+            <line x1="278" y1="141" x2="278" y2="265"/><line x1="284" y1="141" x2="284" y2="265"/><line x1="290" y1="141" x2="290" y2="265"/>
+            <line x1="336" y1="141" x2="336" y2="265"/><line x1="342" y1="141" x2="342" y2="265"/><line x1="348" y1="141" x2="348" y2="265"/>
+          </g>
+          <!-- bases -->
+          <g fill="#2f5a43" stroke="#163b2a" stroke-width="1">
+            <rect x="42" y="269" width="32" height="7"/><rect x="100" y="269" width="32" height="7"/>
+            <rect x="268" y="269" width="32" height="7"/><rect x="326" y="269" width="32" height="7"/>
+          </g>
+
+          <!-- steps -->
+          <g fill="url(#stone)" stroke="#163b2a" stroke-width="1.5">
+            <rect x="26" y="278" width="348" height="10"/>
+            <rect x="18" y="288" width="364" height="10"/>
+            <rect x="10" y="298" width="380" height="12"/>
+          </g>
+        </svg>
+
+        <div class="doors">
+          <div class="door in editable" id="door-in">
+            <div class="door-label">Total Balance</div>
+            <div class="door-amount" id="in-amount">$0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vault">
+        <svg class="rosette" id="rosette" viewBox="0 0 200 200" aria-hidden="true"></svg>
+        <div class="vault-label">Money in the Bank</div>
+        <div class="vault-amount" id="vault-amount">$0.00</div>
+        <div class="vault-sub" id="vault-sub">balance minus what's still owed</div>
+      </div>
+
+      <div id="due-soon-wrap" style="display:none">
+        <div class="ledger-head"><span class="sm">Due Soon · Next 7 Days</span></div>
+        <div id="due-soon-list"></div>
+      </div>
+
+      <section class="cat-section">
+        <div class="cat-head" data-cat="owe">
+          <span class="cat-caret">▾</span>
+          <h2>What You Owe</h2>
+          <span class="cat-total owe" id="sub-owe">$0.00</span>
+        </div>
+        <div class="cat-body" id="body-owe">
+          <div class="cat-note">bills &amp; debts you're committed to</div>
+          <div id="list-owe"></div>
+        </div>
+      </section>
+
+      <section class="cat-section">
+        <div class="cat-head" data-cat="need">
+          <span class="cat-caret">▾</span>
+          <h2>What You Need</h2>
+          <span class="cat-total need" id="sub-need">$0.00</span>
+        </div>
+        <div class="cat-body" id="body-need">
+          <div class="cat-note">essentials — food, gas, the must-haves</div>
+          <div id="list-need"></div>
+        </div>
+      </section>
+
+      <section class="cat-section">
+        <div class="cat-head" data-cat="want">
+          <span class="cat-caret">▾</span>
+          <h2>What You Want</h2>
+          <span class="cat-total want" id="sub-want">$0.00</span>
+        </div>
+        <div class="cat-body" id="body-want">
+          <div class="cat-note">the nice-to-haves and treats</div>
+          <div id="list-want"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===================== TELLER ===================== -->
+    <div id="teller" class="view">
+
+      <div class="panel">
+        <div class="panel-title">Your Accounts</div>
+        <div id="accounts-list"></div>
+        <button class="btn btn-ghost" id="add-account-btn" style="margin-top:4px">+ Add Account</button>
+        <div class="accounts-total-row">
+          <span>Total in the Bank</span>
+          <span id="accounts-total">$0.00</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Add an Item</div>
+        <div class="field">
+          <label>Category</label>
+          <div class="seg" id="add-cat-seg">
+            <button class="on" data-cat="owe">Owe</button>
+            <button data-cat="need">Need</button>
+            <button data-cat="want">Want</button>
+          </div>
+          <input type="hidden" id="add-cat" value="owe">
+        </div>
+        <div class="field">
+          <label>Who / What</label>
+          <input type="text" id="add-name" placeholder="Rent, Groceries, Concert…">
+        </div>
+        <div class="field">
+          <label>Amount</label>
+          <input type="number" id="add-amount" step="0.01" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label>Due Day (optional, 1–31)</label>
+          <input type="number" id="add-dueday" min="1" max="31" placeholder="leave blank if none">
+        </div>
+        <div class="field">
+          <label>How Often</label>
+          <div class="seg" id="add-type-seg"></div>
+          <input type="hidden" id="add-type" value="monthly">
+        </div>
+        <button class="btn btn-primary" id="add-bill-btn">Add Item</button>
+      </div>
+
+      <div class="ledger-head"><h2 style="font-size:18px">Manage Items</h2></div>
+      <div class="filter-row" id="filter-row">
+        <button class="chip on" data-filter="all">All</button>
+        <button class="chip" data-filter="owe">Owe</button>
+        <button class="chip" data-filter="need">Need</button>
+        <button class="chip" data-filter="want">Want</button>
+        <button class="chip" data-filter="unpaid">Unpaid</button>
+        <button class="chip" data-filter="paid">Paid</button>
+      </div>
+      <div id="manage-list"></div>
+    </div>
+
+    <div class="stamp">✦ Bank of the Universe · Series 2026 · Pay to the order of yourself ✦</div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <div class="modal-head">Edit Item</div>
+    <div class="field">
+      <label>Category</label>
+      <div class="seg" id="edit-cat-seg">
+        <button data-cat="owe">Owe</button>
+        <button data-cat="need">Need</button>
+        <button data-cat="want">Want</button>
+      </div>
+      <input type="hidden" id="edit-cat" value="owe">
+    </div>
+    <div class="field">
+      <label>Who / What</label>
+      <input type="text" id="edit-name">
+    </div>
+    <div class="field">
+      <label>Amount</label>
+      <input type="number" id="edit-amount" step="0.01">
+    </div>
+    <div class="field">
+      <label>How Often</label>
+      <div class="seg" id="edit-type-seg"></div>
+      <input type="hidden" id="edit-type" value="monthly">
+    </div>
+    <div class="field">
+      <label>Due Day (optional, 1–31)</label>
+      <input type="number" id="edit-dueday" min="1" max="31" placeholder="leave blank if none">
+    </div>
+    <button class="btn btn-primary" id="edit-save-btn">Save Changes</button>
+    <button class="btn btn-danger" id="edit-delete-btn">Delete Item</button>
+    <button class="btn btn-ghost" id="edit-cancel-btn">Cancel</button>
+  </div>
+</div>
+
+<script>
+/* ============== STATE ============== */
+const STORAGE_KEY='bagcheck';
+let state={
+  accounts:[],
+  currentMonth:new Date().toISOString().slice(0,7),
+  recurringTemplates:[],
+  bills:[],
+  collapsed:{owe:false,need:false,want:false}
+};
+
+/* ============== UTILITIES ============== */
+function generateId(){return Date.now().toString(36)+Math.random().toString(36).substr(2)}
+function getCurrentMonth(){return new Date().toISOString().slice(0,7)}
+function getDaysInMonth(year,month){return new Date(year,month+1,0).getDate()}
+function formatMoney(v){return '$'+parseFloat(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+function ordinal(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
+
+function getDaysUntilDue(dueDay){
+  const today=new Date();
+  const currentDay=today.getDate();
+  const daysInMonth=getDaysInMonth(today.getFullYear(),today.getMonth());
+  return dueDay>=currentDay ? dueDay-currentDay : daysInMonth-currentDay+dueDay;
+}
+function isOverdueSoon(dueDay){return getDaysUntilDue(dueDay)<=7}
+
+/* ============== PERSISTENCE ============== */
+function load(){
+  try{
+    const stored=localStorage.getItem(STORAGE_KEY);
+    if(stored) state=JSON.parse(stored);
+  }catch(e){console.warn('Storage unavailable, running in-memory:',e.message)}
+  // migrate old single-balance format → accounts list
+  if(state.balance!==undefined && !state.accounts){
+    state.accounts=[{id:generateId(),name:'Main Account',balance:state.balance}];
+    delete state.balance;
+  }
+  if(!state.accounts) state.accounts=[];
+  if(!state.collapsed) state.collapsed={owe:false,need:false,want:false};
+  // migrate: default category + recurrence
+  (state.bills||[]).forEach(b=>{
+    if(!b.category)b.category='owe';
+    if(b.recurrence===undefined)b.recurrence=b.recurring?'monthly':'once';
+    b.recurring=b.recurrence!=='once';
+  });
+  (state.recurringTemplates||[]).forEach(t=>{
+    if(!t.category)t.category='owe';
+    if(t.recurrence===undefined)t.recurrence='monthly';
+    if(!t.startMonth)t.startMonth=t.month||state.currentMonth||getCurrentMonth();
+  });
+  checkMonthRollover();
+}
+function save(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+  catch(e){console.warn('Storage unavailable, not persisted:',e.message)}
+}
+function checkMonthRollover(){
+  const now=getCurrentMonth();
+  if(state.currentMonth!==now){
+    const [year,month]=now.split('-').map(Number);
+    const daysInMonth=getDaysInMonth(year,month-1);
+    const nowMM=now.slice(5,7);
+    state.recurringTemplates.forEach(t=>{
+      const rec=t.recurrence||'monthly';
+      let make=false;
+      if(rec==='monthly'||rec==='weekly')make=true;
+      else if(rec==='yearly')make=((t.startMonth||now).slice(5,7)===nowMM);
+      if(!make)return;
+      const dueDay=(t.dueDay==null)?null:Math.min(t.dueDay,daysInMonth);
+      state.bills.push({
+        id:generateId(),name:t.name,amount:t.amount,dueDay,category:t.category||'owe',
+        recurrence:rec,recurring:true,month:now,templateId:t.id,paid:false,paidDate:null
+      });
+    });
+    state.currentMonth=now;
+    save();
+  }
+}
+
+/* ============== BILL OPS ============== */
+function addBill(name,amount,dueDay,recurrence,category){
+  category=category||'owe';recurrence=recurrence||'once';
+  const isRec=recurrence!=='once';
+  if(isRec){
+    const templateId=generateId();
+    state.recurringTemplates.push({id:templateId,name,amount:parseFloat(amount),dueDay,category,recurrence,startMonth:state.currentMonth});
+    state.bills.push({id:generateId(),name,amount:parseFloat(amount),dueDay,category,recurrence,recurring:true,month:state.currentMonth,templateId,paid:false,paidDate:null});
+  }else{
+    state.bills.push({id:generateId(),name,amount:parseFloat(amount),dueDay,category,recurrence:'once',recurring:false,month:state.currentMonth,templateId:null,paid:false,paidDate:null});
+  }
+  save();
+}
+function updateBill(billId,name,amount,dueDay,category,recurrence){
+  const bill=state.bills.find(b=>b.id===billId);
+  if(!bill){save();return}
+  bill.name=name;bill.amount=parseFloat(amount);bill.dueDay=dueDay;
+  if(category)bill.category=category;
+  if(recurrence){
+    const wasRec=!!bill.templateId, nowRec=recurrence!=='once';
+    bill.recurrence=recurrence;bill.recurring=nowRec;
+    if(wasRec&&!nowRec){
+      state.recurringTemplates=state.recurringTemplates.filter(t=>t.id!==bill.templateId);
+      bill.templateId=null;
+    }else if(!wasRec&&nowRec){
+      const templateId=generateId();
+      state.recurringTemplates.push({id:templateId,name:bill.name,amount:bill.amount,dueDay:bill.dueDay,category:bill.category,recurrence,startMonth:state.currentMonth});
+      bill.templateId=templateId;
+    }
+  }
+  if(bill.templateId){
+    const t=state.recurringTemplates.find(t=>t.id===bill.templateId);
+    if(t){t.name=bill.name;t.amount=bill.amount;t.dueDay=bill.dueDay;t.category=bill.category;if(recurrence)t.recurrence=recurrence}
+  }
+  save();
+}
+function deleteBill(billId){
+  const bill=state.bills.find(b=>b.id===billId);
+  if(bill&&bill.templateId){
+    state.recurringTemplates=state.recurringTemplates.filter(t=>t.id!==bill.templateId);
+  }
+  state.bills=state.bills.filter(b=>b.id!==billId);
+  save();
+}
+function toggleBillPaid(billId){
+  const bill=state.bills.find(b=>b.id===billId);
+  if(bill){
+    if(bill.paid){bill.paid=false;bill.paidDate=null}
+    else{bill.paid=true;bill.paidDate=new Date().toISOString()}
+  }
+  save();
+}
+
+/* ===== ACCOUNTS ===== */
+function totalBalance(){return state.accounts.reduce((s,a)=>s+(parseFloat(a.balance)||0),0)}
+function addAccount(name,balance){
+  state.accounts.push({id:generateId(),name:name||'',balance:parseFloat(balance)||0});
+  save();
+}
+function updateAccount(id,fields){
+  const a=state.accounts.find(a=>a.id===id);
+  if(a){if('name'in fields)a.name=fields.name;if('balance'in fields)a.balance=parseFloat(fields.balance)||0}
+  save();
+}
+function deleteAccount(id){state.accounts=state.accounts.filter(a=>a.id!==id);save()}
+
+/* ============== COMPUTED ============== */
+function currentBills(){return state.bills.filter(b=>b.month===state.currentMonth)}
+function totalMonthlySpending(){return currentBills().reduce((s,b)=>s+b.amount,0)}
+function totalUnpaid(){return currentBills().filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0)}
+function unpaidOwe(){return currentBills().filter(b=>!b.paid&&(b.category||'owe')==='owe').reduce((s,b)=>s+b.amount,0)}
+// Money in the Bank: obligated bills (owe) always come out; needs & wants only when you tap Pay
+function availableAfterBills(){
+  let deduct=0;
+  currentBills().forEach(b=>{
+    const cat=b.category||'owe';
+    if(cat==='owe')deduct+=b.amount;        // obligations auto-deduct
+    else if(b.paid)deduct+=b.amount;         // needs & wants deduct only when paid
+  });
+  return totalBalance()-deduct;
+}
+function paidCount(){return currentBills().filter(b=>b.paid).length}
+function unpaidCount(){return currentBills().filter(b=>!b.paid).length}
+
+/* ============== ROSETTE (guilloche) ============== */
+function drawRosette(){
+  const cx=100,cy=100;
+  const rings=[
+    {R:78,amp:9,petals:15,phase:0},
+    {R:66,amp:8,petals:15,phase:.5},
+    {R:52,amp:11,petals:12,phase:0},
+    {R:40,amp:9,petals:12,phase:.4},
+    {R:27,amp:8,petals:9,phase:0},
+    {R:15,amp:6,petals:9,phase:.5}
+  ];
+  const steps=540;
+  let paths='';
+  rings.forEach(r=>{
+    let d='';
+    for(let i=0;i<=steps;i++){
+      const t=i/steps*Math.PI*2;
+      const rr=r.R+r.amp*Math.sin(r.petals*t+r.phase);
+      const x=cx+rr*Math.cos(t);
+      const y=cy+rr*Math.sin(t);
+      d+=(i===0?'M':'L')+x.toFixed(1)+' '+y.toFixed(1)+' ';
+    }
+    paths+=`<path d="${d}" fill="none" stroke="#4a6b57" stroke-width="0.4"/>`;
+  });
+  document.getElementById('rosette').innerHTML=paths;
+}
+
+/* ============== RENDER ============== */
+function billRowHTML(b){
+  const hasDue=b.dueDay!=null;
+  const soon=!b.paid&&hasDue&&isOverdueSoon(b.dueDay);
+  const days=hasDue?getDaysUntilDue(b.dueDay):null;
+  const dueTxt=hasDue?'Due '+ordinal(b.dueDay):'no due date';
+  const daysTxt=b.paid?'settled':(!hasDue?null:(days===0?'due today':days===1?'1 day left':days+' days left'));
+  const meta=[dueTxt];
+  if(daysTxt)meta.push(daysTxt);
+  meta.push((b.paid?'PAID':'OWED'));
+  const rl=recurLabel(b.recurrence);
+  if(rl)meta.push(rl);
+  const metaHTML=meta.map((m,i)=>{
+    let cls='';
+    if(m==='PAID')cls='status-paid';else if(m==='OWED')cls='status-owed';else if(FREQ_WORDS.includes(m))cls='badge-rec';
+    return (i>0?'<span class="dot">·</span>':'')+`<span class="${cls}">${m}</span>`;
+  }).join('');
+  return `
+    <div class="bill ${soon?'due-soon':''} ${b.paid?'paid':''}" data-id="${b.id}">
+      <button class="seal seal-toggle ${b.paid?'stamped':''}">${b.paid?'PAID':'PAY'}</button>
+      <div class="bill-body">
+        <div class="bill-name">${escapeHTML(b.name)}</div>
+        <div class="bill-line">${metaHTML}</div>
+      </div>
+      <div class="bill-amt">${formatMoney(b.amount)}</div>
+    </div>`;
+}
+function escapeHTML(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function recurLabel(r){return r==='weekly'?'weekly':r==='monthly'?'monthly':r==='yearly'?'yearly':''}
+const FREQ_WORDS=['weekly','monthly','yearly'];
+
+function catSort(a,b){
+  if(a.paid!==b.paid)return a.paid?1:-1;
+  const ad=(a.dueDay==null)?99:a.dueDay, bd=(b.dueDay==null)?99:b.dueDay;
+  return ad-bd;
+}
+function renderCategory(cat,listId,subId,emptyMsg){
+  const items=currentBills().filter(b=>(b.category||'owe')===cat).slice().sort(catSort);
+  // owe = full obligations; need/want = what's left (unpaid), since paying spends it
+  const subtotal=(cat==='owe')
+    ? items.reduce((s,b)=>s+b.amount,0)
+    : items.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0);
+  document.getElementById(subId).textContent=formatMoney(subtotal);
+  document.getElementById(listId).innerHTML=items.length
+    ? items.map(billRowHTML).join('')
+    : `<div class="empty">${emptyMsg}</div>`;
+}
+
+function renderBank(){
+  document.getElementById('in-amount').textContent=formatMoney(totalBalance());
+
+  const avail=availableAfterBills();
+  const va=document.getElementById('vault-amount');
+  va.textContent=formatMoney(avail);
+  va.classList.toggle('neg',avail<0);
+  document.getElementById('vault-sub').textContent=avail<0?"you're short on bills":"after bills & what you've paid";
+
+  // Due Soon (across all categories, unpaid, has due date)
+  const soon=currentBills().filter(b=>!b.paid&&b.dueDay!=null&&isOverdueSoon(b.dueDay)).sort((a,b)=>a.dueDay-b.dueDay);
+  const soonWrap=document.getElementById('due-soon-wrap');
+  if(soon.length){
+    soonWrap.style.display='block';
+    document.getElementById('due-soon-list').innerHTML=soon.map(billRowHTML).join('');
+  }else{soonWrap.style.display='none'}
+
+  renderCategory('owe','list-owe','sub-owe','Nothing owed yet. Add bills on The Teller.');
+  renderCategory('need','list-need','sub-need','No needs listed yet.');
+  renderCategory('want','list-want','sub-want','No wants listed yet.');
+  applyCollapse();
+}
+
+/* ===== collapse ===== */
+function applyCollapse(){
+  ['owe','need','want'].forEach(cat=>{
+    const body=document.getElementById('body-'+cat);
+    const caret=document.querySelector(`.cat-head[data-cat="${cat}"] .cat-caret`);
+    const col=state.collapsed&&state.collapsed[cat];
+    if(body)body.style.display=col?'none':'block';
+    if(caret)caret.textContent=col?'▸':'▾';
+  });
+}
+function toggleCollapse(cat){
+  if(!state.collapsed)state.collapsed={owe:false,need:false,want:false};
+  state.collapsed[cat]=!state.collapsed[cat];
+  save();applyCollapse();
+}
+
+/* ===== dynamic frequency segment ===== */
+function typeOptions(cat){
+  return cat==='owe'
+    ? [['once','One-Time'],['monthly','Monthly'],['yearly','Yearly']]
+    : [['once','One-Time'],['weekly','Weekly'],['monthly','Monthly']];
+}
+function fillTypeSeg(segEl,hiddenEl,cat,selected){
+  const opts=typeOptions(cat);
+  if(!opts.some(o=>o[0]===selected))selected='monthly';
+  segEl.innerHTML=opts.map(o=>`<button data-type="${o[0]}" class="${o[0]===selected?'on':''}">${o[1]}</button>`).join('');
+  hiddenEl.value=selected;
+}
+
+let currentFilter='all';
+function renderManage(){
+  const bills=currentBills();
+  let f=bills;
+  if(currentFilter==='paid')f=bills.filter(b=>b.paid);
+  else if(currentFilter==='unpaid')f=bills.filter(b=>!b.paid);
+  else if(currentFilter==='owe')f=bills.filter(b=>(b.category||'owe')==='owe');
+  else if(currentFilter==='need')f=bills.filter(b=>b.category==='need');
+  else if(currentFilter==='want')f=bills.filter(b=>b.category==='want');
+  f=f.slice().sort(catSort);
+
+  const catLabel={owe:'Owe',need:'Need',want:'Want'};
+  document.getElementById('manage-list').innerHTML=f.length
+    ? f.map(b=>`
+      <div class="manage-row" data-id="${b.id}">
+        <div class="mr-body">
+          <div class="mr-name">${escapeHTML(b.name)}</div>
+          <div class="mr-meta">${catLabel[b.category||'owe']} · ${b.dueDay!=null?'due '+ordinal(b.dueDay):'no due date'} · ${recurLabel(b.recurrence)||'one-time'} · ${b.paid?'paid':'owed'}</div>
+        </div>
+        <div class="mr-amt">${formatMoney(b.amount)}</div>
+        <button class="mini mr-edit">✎</button>
+        <button class="mini mr-del">✕</button>
+      </div>`).join('')
+    : '<div class="empty">No items to show for this filter.</div>';
+}
+
+function render(){renderBank();renderManage();renderAccounts()}
+
+/* ===== ACCOUNTS RENDER ===== */
+function renderAccounts(){
+  const list=document.getElementById('accounts-list');
+  if(!state.accounts.length){
+    list.innerHTML='<div class="acct-empty">No accounts yet. Add one below to start tallying.</div>';
+  }else{
+    list.innerHTML=state.accounts.map(a=>`
+      <div class="acct-row" data-id="${a.id}">
+        <input class="acct-name" type="text" placeholder="Account name">
+        <input class="acct-bal" type="number" step="0.01" placeholder="0.00">
+        <button class="mini acct-del" title="Remove account">✕</button>
+      </div>`).join('');
+    // set values via JS to avoid attribute-escaping issues
+    state.accounts.forEach(a=>{
+      const row=list.querySelector(`.acct-row[data-id="${a.id}"]`);
+      row.querySelector('.acct-name').value=a.name;
+      row.querySelector('.acct-bal').value=a.balance;
+    });
+  }
+  document.getElementById('accounts-total').textContent=formatMoney(totalBalance());
+}
+
+/* ============== IN DOOR → jump to accounts ============== */
+function goToAccounts(){
+  document.querySelector('[data-tab="teller"]').click();
+  document.getElementById('accounts-list').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+/* ============== EDIT MODAL ============== */
+let editingId=null;
+function openEdit(id){
+  editingId=id;
+  const b=state.bills.find(x=>x.id===id);
+  if(!b)return;
+  document.getElementById('edit-name').value=b.name;
+  document.getElementById('edit-amount').value=b.amount;
+  document.getElementById('edit-dueday').value=b.dueDay==null?'':b.dueDay;
+  const cat=b.category||'owe';
+  document.getElementById('edit-cat').value=cat;
+  document.querySelectorAll('#edit-cat-seg button').forEach(btn=>btn.classList.toggle('on',btn.dataset.cat===cat));
+  fillTypeSeg(document.getElementById('edit-type-seg'),document.getElementById('edit-type'),cat,b.recurrence||'once');
+  document.getElementById('modal').classList.add('active');
+}
+function closeEdit(){document.getElementById('modal').classList.remove('active');editingId=null}
+
+/* ============== EVENTS ============== */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+// IN door → manage accounts
+document.getElementById('door-in').addEventListener('click',goToAccounts);
+
+// Add-type segment
+document.getElementById('add-type-seg').addEventListener('click',e=>{
+  const btn=e.target.closest('button');if(!btn)return;
+  document.querySelectorAll('#add-type-seg button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('add-type').value=btn.dataset.type;
+});
+
+// Add-category segment
+document.getElementById('add-cat-seg').addEventListener('click',e=>{
+  const btn=e.target.closest('button');if(!btn)return;
+  document.querySelectorAll('#add-cat-seg button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('add-cat').value=btn.dataset.cat;
+  fillTypeSeg(document.getElementById('add-type-seg'),document.getElementById('add-type'),btn.dataset.cat,document.getElementById('add-type').value);
+});
+
+// Add account
+document.getElementById('add-account-btn').addEventListener('click',()=>{
+  addAccount('',0);
+  renderAccounts();renderBank();
+  const rows=document.querySelectorAll('.acct-row');
+  const last=rows[rows.length-1];
+  if(last)last.querySelector('.acct-name').focus();
+});
+
+// Live edit + delete accounts (delegated on the list)
+document.getElementById('accounts-list').addEventListener('input',e=>{
+  const row=e.target.closest('.acct-row');if(!row)return;
+  const id=row.dataset.id;
+  if(e.target.classList.contains('acct-name'))updateAccount(id,{name:e.target.value});
+  if(e.target.classList.contains('acct-bal'))updateAccount(id,{balance:e.target.value});
+  // update totals + bank figures without re-rendering rows (keeps focus)
+  document.getElementById('accounts-total').textContent=formatMoney(totalBalance());
+  renderBank();
+});
+document.getElementById('accounts-list').addEventListener('click',e=>{
+  const del=e.target.closest('.acct-del');if(!del)return;
+  deleteAccount(del.closest('.acct-row').dataset.id);
+  renderAccounts();renderBank();
+});
+
+// Add item
+document.getElementById('add-bill-btn').addEventListener('click',()=>{
+  const name=document.getElementById('add-name').value.trim();
+  const amount=document.getElementById('add-amount').value;
+  const dueRaw=document.getElementById('add-dueday').value;
+  const type=document.getElementById('add-type').value;
+  const category=document.getElementById('add-cat').value;
+  if(!name||!amount){flash(document.getElementById('add-bill-btn'),'Add a name & amount');return}
+  const dueDay=dueRaw===''?null:Math.max(1,Math.min(31,parseInt(dueRaw)));
+  addBill(name,amount,dueDay,type,category);
+  document.getElementById('add-name').value='';
+  document.getElementById('add-amount').value='';
+  document.getElementById('add-dueday').value='';
+  render();
+  flash(document.getElementById('add-bill-btn'),'Added ✓');
+});
+
+// Filters
+document.getElementById('filter-row').addEventListener('click',e=>{
+  const chip=e.target.closest('.chip');if(!chip)return;
+  document.querySelectorAll('#filter-row .chip').forEach(c=>c.classList.remove('on'));
+  chip.classList.add('on');
+  currentFilter=chip.dataset.filter;
+  renderManage();
+});
+
+// Delegated: pay toggles + manage edit/delete
+document.addEventListener('click',e=>{
+  const seal=e.target.closest('.seal-toggle');
+  if(seal){toggleBillPaid(seal.closest('.bill').dataset.id);render();return}
+  const edit=e.target.closest('.mr-edit');
+  if(edit){openEdit(edit.closest('.manage-row').dataset.id);return}
+  const del=e.target.closest('.mr-del');
+  if(del){
+    if(confirm('Delete this item?')){deleteBill(del.closest('.manage-row').dataset.id);render()}
+    return;
+  }
+});
+
+// Edit-category segment
+document.getElementById('edit-cat-seg').addEventListener('click',e=>{
+  const btn=e.target.closest('button');if(!btn)return;
+  document.querySelectorAll('#edit-cat-seg button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('edit-cat').value=btn.dataset.cat;
+  fillTypeSeg(document.getElementById('edit-type-seg'),document.getElementById('edit-type'),btn.dataset.cat,document.getElementById('edit-type').value);
+});
+// Edit-frequency segment
+document.getElementById('edit-type-seg').addEventListener('click',e=>{
+  const btn=e.target.closest('button');if(!btn)return;
+  document.querySelectorAll('#edit-type-seg button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('edit-type').value=btn.dataset.type;
+});
+
+// Modal buttons
+document.getElementById('edit-save-btn').addEventListener('click',()=>{
+  const name=document.getElementById('edit-name').value.trim();
+  const amount=document.getElementById('edit-amount').value;
+  const dueRaw=document.getElementById('edit-dueday').value;
+  const category=document.getElementById('edit-cat').value;
+  const recurrence=document.getElementById('edit-type').value;
+  if(!name||!amount)return;
+  const dueDay=dueRaw===''?null:Math.max(1,Math.min(31,parseInt(dueRaw)));
+  updateBill(editingId,name,amount,dueDay,category,recurrence);
+  closeEdit();render();
+});
+document.getElementById('edit-delete-btn').addEventListener('click',()=>{
+  if(confirm('Delete this item?')){deleteBill(editingId);closeEdit();render()}
+});
+document.getElementById('edit-cancel-btn').addEventListener('click',closeEdit);
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeEdit()});
+
+function flash(btn,msg){
+  const orig=btn.textContent;
+  btn.textContent=msg;
+  setTimeout(()=>{btn.textContent=orig},1100);
+}
+
+/* ============== INIT ============== */
+// collapsible section headers
+document.querySelectorAll('.cat-head').forEach(h=>{
+  h.addEventListener('click',()=>toggleCollapse(h.dataset.cat));
+});
+// seed the add-form frequency segment (Owe → Monthly/Yearly)
+fillTypeSeg(document.getElementById('add-type-seg'),document.getElementById('add-type'),'owe','monthly');
+
+drawRosette();
+load();
+render();
+</script>
+</body>
+</html>
