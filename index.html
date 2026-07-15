@@ -595,8 +595,13 @@
         <div class="vault-sub" id="vault-sub">balance minus what's still owed</div>
       </div>
 
+      <div id="past-due-wrap" style="display:none">
+        <div class="ledger-head"><span class="sm">Past Due</span></div>
+        <div id="past-due-list"></div>
+      </div>
+
       <div id="due-soon-wrap" style="display:none">
-        <div class="ledger-head"><span class="sm">Due Soon &amp; Past Due</span></div>
+        <div class="ledger-head"><span class="sm">Due Soon · Next 7 Days</span></div>
         <div id="due-soon-list"></div>
       </div>
 
@@ -1002,22 +1007,22 @@ function renderBank(){
   va.classList.toggle('neg',avail<0);
   document.getElementById('vault-sub').textContent=avail<0?"you're short on bills":"after bills & what you've paid";
 
-  // Due Soon & Past Due (across all categories, unpaid; past-due items always surface, not just those within 7 days)
-  const soon=currentBills().filter(b=>{
-    if(b.paid)return false;
+  // Past Due (across all categories, unpaid, actually overdue) and Due Soon (unpaid, within 7 days, not yet late)
+  const unpaidNow=currentBills().filter(b=>!b.paid);
+  const pastDue=unpaidNow.filter(b=>billDueStatus(b).pastDue)
+    .sort((a,b)=>(a.dueDay==null?99:a.dueDay)-(b.dueDay==null?99:b.dueDay));
+  const soon=unpaidNow.filter(b=>{
     const st=billDueStatus(b);
-    return st.pastDue||(b.dueDay!=null&&st.daysUntil!=null&&st.daysUntil<=7);
-  }).sort((a,b)=>{
-    const sa=billDueStatus(a),sb=billDueStatus(b);
-    if(sa.pastDue!==sb.pastDue)return sa.pastDue?-1:1;
-    const ad=(a.dueDay==null)?99:a.dueDay, bd=(b.dueDay==null)?99:b.dueDay;
-    return ad-bd;
-  });
+    return !st.pastDue&&b.dueDay!=null&&st.daysUntil!=null&&st.daysUntil<=7;
+  }).sort((a,b)=>a.dueDay-b.dueDay);
+
+  const pastDueWrap=document.getElementById('past-due-wrap');
+  pastDueWrap.style.display=pastDue.length?'block':'none';
+  document.getElementById('past-due-list').innerHTML=pastDue.map(billRowHTML).join('');
+
   const soonWrap=document.getElementById('due-soon-wrap');
-  if(soon.length){
-    soonWrap.style.display='block';
-    document.getElementById('due-soon-list').innerHTML=soon.map(billRowHTML).join('');
-  }else{soonWrap.style.display='none'}
+  soonWrap.style.display=soon.length?'block':'none';
+  document.getElementById('due-soon-list').innerHTML=soon.map(billRowHTML).join('');
 
   renderCategory('owe','list-owe','sub-owe','Nothing owed yet. Add bills on The Teller.');
   renderCategory('need','list-need','sub-need','No needs listed yet.');
