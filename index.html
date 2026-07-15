@@ -309,6 +309,7 @@
     content:"";position:absolute;inset:3px;border:0.75px solid var(--line);border-radius:2px;opacity:.4;pointer-events:none;
   }
   .bill.due-soon{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+  .bill.past-due{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
   .bill.paid{opacity:.62}
 
   /* wax-seal paid toggle */
@@ -595,7 +596,7 @@
       </div>
 
       <div id="due-soon-wrap" style="display:none">
-        <div class="ledger-head"><span class="sm">Due Soon · Next 7 Days</span></div>
+        <div class="ledger-head"><span class="sm">Due Soon &amp; Past Due</span></div>
         <div id="due-soon-list"></div>
       </div>
 
@@ -750,13 +751,15 @@ function getDaysInMonth(year,month){return new Date(year,month+1,0).getDate()}
 function formatMoney(v){return '$'+parseFloat(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
 function ordinal(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
 
-function getDaysUntilDue(dueDay){
-  const today=new Date();
-  const currentDay=today.getDate();
-  const daysInMonth=getDaysInMonth(today.getFullYear(),today.getMonth());
-  return dueDay>=currentDay ? dueDay-currentDay : daysInMonth-currentDay+dueDay;
+// status of a bill instance "as of today" — no longer wraps past-due days into "next month"
+function billDueStatus(b){
+  if(b.paid)return{pastDue:false,daysUntil:null};
+  if(b.month<state.currentMonth)return{pastDue:true,daysUntil:null}; // carried over from an earlier month, unpaid
+  if(b.dueDay==null)return{pastDue:false,daysUntil:null};
+  const currentDay=new Date().getDate();
+  if(b.dueDay<currentDay)return{pastDue:true,daysUntil:currentDay-b.dueDay};
+  return{pastDue:false,daysUntil:b.dueDay-currentDay};
 }
-function isOverdueSoon(dueDay){return getDaysUntilDue(dueDay)<=7}
 
 /* ============== PERSISTENCE ============== */
 function load(){
@@ -800,9 +803,13 @@ function checkMonthRollover(){
       if(rec==='monthly'||rec==='weekly')make=true;
       else if(rec==='yearly')make=((t.startMonth||now).slice(5,7)===nowMM);
       if(!make)return;
+      const cat=t.category||'owe';
+      // an unpaid owe instance stays outstanding (past due) instead of being replaced —
+      // only spawn a fresh one once the last one is settled
+      if(cat==='owe'&&state.bills.some(b=>b.templateId===t.id&&!b.paid))return;
       const dueDay=(t.dueDay==null)?null:Math.min(t.dueDay,daysInMonth);
       state.bills.push({
-        id:generateId(),name:t.name,amount:t.amount,dueDay,category:t.category||'owe',
+        id:generateId(),name:t.name,amount:t.amount,dueDay,category:cat,
         recurrence:rec,recurring:true,month:now,templateId:t.id,paid:false,paidDate:null
       });
     });
@@ -878,7 +885,13 @@ function updateAccount(id,fields){
 function deleteAccount(id){state.accounts=state.accounts.filter(a=>a.id!==id);save()}
 
 /* ============== COMPUTED ============== */
-function currentBills(){return state.bills.filter(b=>b.month===state.currentMonth)}
+// current month's bills, plus any unpaid owe items carried over from earlier months (past due)
+function currentBills(){
+  return state.bills.filter(b=>
+    b.month===state.currentMonth ||
+    ((b.category||'owe')==='owe' && !b.paid && b.month<state.currentMonth)
+  );
+}
 function totalMonthlySpending(){return currentBills().reduce((s,b)=>s+b.amount,0)}
 function totalUnpaid(){return currentBills().filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0)}
 function unpaidOwe(){return currentBills().filter(b=>!b.paid&&(b.category||'owe')==='owe').reduce((s,b)=>s+b.amount,0)}
@@ -925,22 +938,25 @@ function drawRosette(){
 /* ============== RENDER ============== */
 function billRowHTML(b){
   const hasDue=b.dueDay!=null;
-  const soon=!b.paid&&hasDue&&isOverdueSoon(b.dueDay);
-  const days=hasDue?getDaysUntilDue(b.dueDay):null;
+  const status=billDueStatus(b);
+  const soon=!b.paid&&(status.pastDue||(hasDue&&status.daysUntil!=null&&status.daysUntil<=7));
   const dueTxt=hasDue?'Due '+ordinal(b.dueDay):'no due date';
-  const daysTxt=b.paid?'settled':(!hasDue?null:(days===0?'due today':days===1?'1 day left':days+' days left'));
+  let daysTxt=null;
+  if(b.paid)daysTxt='settled';
+  else if(status.pastDue)daysTxt=status.daysUntil==null?'past due':(status.daysUntil===1?'1 day past due':status.daysUntil+' days past due');
+  else if(hasDue)daysTxt=status.daysUntil===0?'due today':status.daysUntil===1?'1 day left':status.daysUntil+' days left';
   const meta=[dueTxt];
   if(daysTxt)meta.push(daysTxt);
-  meta.push((b.paid?'PAID':'OWED'));
+  meta.push(b.paid?'PAID':(status.pastDue?'PAST DUE':'OWED'));
   const rl=recurLabel(b.recurrence);
   if(rl)meta.push(rl);
   const metaHTML=meta.map((m,i)=>{
     let cls='';
-    if(m==='PAID')cls='status-paid';else if(m==='OWED')cls='status-owed';else if(FREQ_WORDS.includes(m))cls='badge-rec';
+    if(m==='PAID')cls='status-paid';else if(m==='OWED'||m==='PAST DUE')cls='status-owed';else if(FREQ_WORDS.includes(m))cls='badge-rec';
     return (i>0?'<span class="dot">·</span>':'')+`<span class="${cls}">${m}</span>`;
   }).join('');
   return `
-    <div class="bill ${soon?'due-soon':''} ${b.paid?'paid':''}" data-id="${b.id}">
+    <div class="bill ${!b.paid&&status.pastDue?'past-due':(soon?'due-soon':'')} ${b.paid?'paid':''}" data-id="${b.id}">
       <button class="seal seal-toggle ${b.paid?'stamped':''}">${b.paid?'PAID':'PAY'}</button>
       <div class="bill-body">
         <div class="bill-name">${escapeHTML(b.name)}</div>
@@ -955,6 +971,8 @@ const FREQ_WORDS=['weekly','monthly','yearly'];
 
 function catSort(a,b){
   if(a.paid!==b.paid)return a.paid?1:-1;
+  const sa=billDueStatus(a),sb=billDueStatus(b);
+  if(sa.pastDue!==sb.pastDue)return sa.pastDue?-1:1;
   const ad=(a.dueDay==null)?99:a.dueDay, bd=(b.dueDay==null)?99:b.dueDay;
   return ad-bd;
 }
@@ -979,8 +997,17 @@ function renderBank(){
   va.classList.toggle('neg',avail<0);
   document.getElementById('vault-sub').textContent=avail<0?"you're short on bills":"after bills & what you've paid";
 
-  // Due Soon (across all categories, unpaid, has due date)
-  const soon=currentBills().filter(b=>!b.paid&&b.dueDay!=null&&isOverdueSoon(b.dueDay)).sort((a,b)=>a.dueDay-b.dueDay);
+  // Due Soon & Past Due (across all categories, unpaid; past-due items always surface, not just those within 7 days)
+  const soon=currentBills().filter(b=>{
+    if(b.paid)return false;
+    const st=billDueStatus(b);
+    return st.pastDue||(b.dueDay!=null&&st.daysUntil!=null&&st.daysUntil<=7);
+  }).sort((a,b)=>{
+    const sa=billDueStatus(a),sb=billDueStatus(b);
+    if(sa.pastDue!==sb.pastDue)return sa.pastDue?-1:1;
+    const ad=(a.dueDay==null)?99:a.dueDay, bd=(b.dueDay==null)?99:b.dueDay;
+    return ad-bd;
+  });
   const soonWrap=document.getElementById('due-soon-wrap');
   if(soon.length){
     soonWrap.style.display='block';
