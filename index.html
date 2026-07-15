@@ -804,9 +804,9 @@ function checkMonthRollover(){
       else if(rec==='yearly')make=((t.startMonth||now).slice(5,7)===nowMM);
       if(!make)return;
       const cat=t.category||'owe';
-      // an unpaid owe instance stays outstanding (past due) instead of being replaced —
-      // only spawn a fresh one once the last one is settled
-      if(cat==='owe'&&state.bills.some(b=>b.templateId===t.id&&!b.paid))return;
+      // an unpaid instance (any category) stays outstanding — past due — instead of being
+      // replaced; only spawn a fresh one once the last one is settled via Pay
+      if(state.bills.some(b=>b.templateId===t.id&&!b.paid))return;
       const dueDay=(t.dueDay==null)?null:Math.min(t.dueDay,daysInMonth);
       state.bills.push({
         id:generateId(),name:t.name,amount:t.amount,dueDay,category:cat,
@@ -885,11 +885,11 @@ function updateAccount(id,fields){
 function deleteAccount(id){state.accounts=state.accounts.filter(a=>a.id!==id);save()}
 
 /* ============== COMPUTED ============== */
-// current month's bills, plus any unpaid owe items carried over from earlier months (past due)
+// current month's bills, plus any unpaid items (any category) carried over from earlier months (past due)
 function currentBills(){
   return state.bills.filter(b=>
     b.month===state.currentMonth ||
-    ((b.category||'owe')==='owe' && !b.paid && b.month<state.currentMonth)
+    (!b.paid && b.month<state.currentMonth)
   );
 }
 function totalMonthlySpending(){return currentBills().reduce((s,b)=>s+b.amount,0)}
