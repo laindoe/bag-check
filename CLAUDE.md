@@ -34,7 +34,7 @@ state = {
   ],
   bills: [                                           // per-month item instances
     { id, name, amount, dueDay, month, category,
-      recurrence, recurring, templateId, paid, paidDate }
+      recurrence, recurring, templateId, paid, paidDate, carriedOver }
   ],
   collapsed: { owe: false, need: false, want: false }
 }
@@ -46,6 +46,7 @@ state = {
   - **need** and **want** offer: once / weekly / monthly
 - `dueDay`: `1–31` or `null` (due day is optional)
 - `recurring`: boolean mirror of `recurrence !== 'once'` (kept in sync; legacy convenience)
+- `carriedOver`: `true` once a bill has been rolled forward unpaid from an earlier month (see below); drives the "past due" flag in `billDueStatus()`
 
 There is a migration block in `load()` that upgrades older saved data (single `balance` → `accounts`, missing `category`/`recurrence`/`collapsed`). Keep it.
 
@@ -64,13 +65,16 @@ There is a migration block in `load()` that upgrades older saved data (single `b
 
 ## Recurrence & month rollover
 
-`checkMonthRollover()` runs on load. If `currentMonth` != today's `YYYY-MM`, it spawns fresh **unpaid** instances from each `recurringTemplates` entry into the new month:
-- `monthly` and `weekly` → every month
-- `yearly` → only when the new month matches the template's `startMonth` month (anniversary)
+`checkMonthRollover()` runs on load. If `currentMonth` != today's `YYYY-MM`:
+
+1. **Carry-forward pass**: any bill (any category, recurring or one-time) that's still unpaid from an earlier month has its `month` rewritten to the new current month and gets `carriedOver=true`. It is now indistinguishable from a normal this-month bill — same id, same original `dueDay`, still shows in every list, still toggles Pay/unpaid freely. Nothing ever disappears from view because of a date passing; the **only** way a bill leaves the current view is getting paid before the *next* rollover.
+2. **Spawn pass**: for each `recurringTemplates` entry that should fire this month (`monthly`/`weekly` → every month; `yearly` → only on the `startMonth` anniversary), a fresh unpaid instance is created **unless** an unpaid instance for that template already exists (i.e. it just got carried forward in step 1 — don't duplicate it).
+
+`billDueStatus(b)` computes past-due status **live**, without ever wrapping a passed due day into "next month": `carriedOver` bills are always past due (exact day-count isn't tracked across the boundary — just "past due"); same-month bills compare `dueDay` to today's day-of-month directly, so a bill due 2 days ago correctly shows "2 days past due" instead of resetting to a future date.
 
 Known simplifications (fine for now; flag before "fixing"):
 - **Weekly items count once per month** in totals (not ×4.3). A "monthly-equivalent" option is a possible feature, not a bug.
-- If the app isn't opened for several months, rollover only fills the **current** month, not the skipped ones.
+- If the app isn't opened for several months, rollover only fills the **current** month, not the skipped ones (an unpaid bill still carries forward correctly either way, since the carry-forward pass just checks `month < now`).
 
 ## Rendering
 

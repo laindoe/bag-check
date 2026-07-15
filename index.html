@@ -754,7 +754,7 @@ function ordinal(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]
 // status of a bill instance "as of today" — no longer wraps past-due days into "next month"
 function billDueStatus(b){
   if(b.paid)return{pastDue:false,daysUntil:null};
-  if(b.month<state.currentMonth)return{pastDue:true,daysUntil:null}; // carried over from an earlier month, unpaid
+  if(b.carriedOver)return{pastDue:true,daysUntil:null}; // rolled forward unpaid from an earlier month
   if(b.dueDay==null)return{pastDue:false,daysUntil:null};
   const currentDay=new Date().getDate();
   if(b.dueDay<currentDay)return{pastDue:true,daysUntil:currentDay-b.dueDay};
@@ -797,6 +797,16 @@ function checkMonthRollover(){
     const [year,month]=now.split('-').map(Number);
     const daysInMonth=getDaysInMonth(year,month-1);
     const nowMM=now.slice(5,7);
+
+    // Anything still unpaid from an earlier month carries forward into this month as-is —
+    // same bill, same due day, just tagged past due. It only ever leaves this list via Pay.
+    state.bills.forEach(b=>{
+      if(!b.paid&&b.month<now){
+        b.month=now;
+        b.carriedOver=true;
+      }
+    });
+
     state.recurringTemplates.forEach(t=>{
       const rec=t.recurrence||'monthly';
       let make=false;
@@ -804,13 +814,12 @@ function checkMonthRollover(){
       else if(rec==='yearly')make=((t.startMonth||now).slice(5,7)===nowMM);
       if(!make)return;
       const cat=t.category||'owe';
-      // an unpaid instance (any category) stays outstanding — past due — instead of being
-      // replaced; only spawn a fresh one once the last one is settled via Pay
+      // if the last cycle's instance just got carried forward above (still unpaid), don't spawn a duplicate
       if(state.bills.some(b=>b.templateId===t.id&&!b.paid))return;
       const dueDay=(t.dueDay==null)?null:Math.min(t.dueDay,daysInMonth);
       state.bills.push({
         id:generateId(),name:t.name,amount:t.amount,dueDay,category:cat,
-        recurrence:rec,recurring:true,month:now,templateId:t.id,paid:false,paidDate:null
+        recurrence:rec,recurring:true,month:now,templateId:t.id,paid:false,paidDate:null,carriedOver:false
       });
     });
     state.currentMonth=now;
@@ -885,13 +894,9 @@ function updateAccount(id,fields){
 function deleteAccount(id){state.accounts=state.accounts.filter(a=>a.id!==id);save()}
 
 /* ============== COMPUTED ============== */
-// current month's bills, plus any unpaid items (any category) carried over from earlier months (past due)
-function currentBills(){
-  return state.bills.filter(b=>
-    b.month===state.currentMonth ||
-    (!b.paid && b.month<state.currentMonth)
-  );
-}
+// unpaid items carry their month forward at rollover (see checkMonthRollover), so this
+// is always just "this month's bills" — paid or not, nothing disappears mid-month
+function currentBills(){return state.bills.filter(b=>b.month===state.currentMonth)}
 function totalMonthlySpending(){return currentBills().reduce((s,b)=>s+b.amount,0)}
 function totalUnpaid(){return currentBills().filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0)}
 function unpaidOwe(){return currentBills().filter(b=>!b.paid&&(b.category||'owe')==='owe').reduce((s,b)=>s+b.amount,0)}
