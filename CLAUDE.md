@@ -54,11 +54,12 @@ There is a migration block in `load()` that upgrades older saved data (single `b
 
 - **Total Balance** = sum of all `accounts[].balance`.
 - **Money in the Bank** (`availableAfterBills()`):
-  `totalBalance − (ALL owe items) − (PAID needs) − (PAID wants)`
-  - **Owe items always deduct** (obligations — auto).
-  - **Needs & wants deduct only when marked Paid** (tap the wax-seal "PAY").
-  - Mental model for the user: Total Balance is the starting pot for the period; obligations come out automatically; tap Pay on needs/wants as you actually spend.
-- **Section subtotals:**
+  `totalBalance − (UNPAID owe items) − (UNPAID needs/wants that have a due day)`
+  - **Paid items never deduct**, regardless of category — once you tap Pay, that money's assumed to already be reflected in your account balance, so it drops out of the deduction (this is why an accidentally-carried-forward "past due" bill can be Paid/un-Paid freely without double-counting).
+  - **Owe items deduct automatically while unpaid** — no due day needed, they're obligations by category.
+  - **Needs & wants only deduct while unpaid *and* they have a due day** — an undated need/want (e.g. a loose "maybe I'll buy this" item) never touches Money in the Bank, paid or not; giving it a due day is what turns it into an obligation like Owe.
+  - Mental model for the user: Total Balance is your actual current account balance; Money in the Bank is what's left once you set aside everything still due this month.
+- **Section subtotals** (unchanged by the above — these are informational monthly totals, not tied to what's currently deducted):
   - **What You Owe** subtotal = sum of *all* owe items.
   - **What You Need / What You Want** subtotals = sum of *unpaid* items only (paying removes it from the "to spend" total).
 - The old "OUT" door was removed on purpose (it duplicated What You Owe).

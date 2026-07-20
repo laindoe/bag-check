@@ -909,9 +909,10 @@ function unpaidOwe(){return currentBills().filter(b=>!b.paid&&(b.category||'owe'
 function availableAfterBills(){
   let deduct=0;
   currentBills().forEach(b=>{
+    if(b.paid)return; // paid items don't deduct — that money's already accounted for
     const cat=b.category||'owe';
-    if(cat==='owe')deduct+=b.amount;        // obligations auto-deduct
-    else if(b.paid)deduct+=b.amount;         // needs & wants deduct only when paid
+    if(cat==='owe')deduct+=b.amount;                  // unpaid owe = still due, always deducts
+    else if(b.dueDay!=null)deduct+=b.amount;          // undated needs/wants never deduct; dated ones deduct while unpaid
   });
   return totalBalance()-deduct;
 }
